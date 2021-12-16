@@ -88,7 +88,7 @@ class Sample:
 
 
 if __name__ == '__main__':
-    sample = Sample('/media/koda/New Disk/Code/bacteria/atccs/plastico_A',
+    sample = Sample('dir',
                     'Enterobacteaerogenes_13048_Plastico_A_Contaminado_180926-102646')
 
     print(sample.image.shape)
