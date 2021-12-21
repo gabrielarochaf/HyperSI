@@ -10,10 +10,76 @@ from hsiroutine import HsiRoutine
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 
+from IPython.display import clear_output
 from sklearn.metrics import confusion_matrix
 
 
-from IPython.display import clear_output
+colors = {
+    '0': '#2001c4',
+    '1': '#707e51',
+    '2': '#df0100',
+    '3': '#a96a77',
+    '4': '#288bb0',
+    '5': '#643a89',
+    '6': '#715657',
+    '7': '#533e55',
+    '8': '#68be9e',
+    '9': '#bafeac',
+    '10': '#bf4f37',
+    '11': '#0fd1c6',
+    '12': '#22cbe3',
+    '13': '#961e53',
+    '14': '#1ad397',
+    '15': '#811771',
+    '16': '#404686',
+    '17': '#4c42e2',
+    '18': '#fbf899',
+    '19': '#bdd387',
+    '20': '#7774bd',
+    '21': '#1b0f3f',
+    '22': '#32e726',
+    '23': '#b25e1c',
+    '24': '#87508b',
+    '25': '#fa38ff',
+    '26': '#c0e33c',
+    '27': '#6b8a93',
+    '28': '#cec15f',
+    '29': '#7cbca0',
+    '30': '#692225',
+    '31': '#4e7aee',
+    '32': '#89f41d',
+    '33': '#2a5ba7',
+    '34': '#5cb70b',
+    '35': '#c8f9a1',
+    '36': '#cbc184',
+    '37': '#253b85',
+    '38': '#919b65',
+    '39': '#76929b',
+    '40': '#7e6943',
+    '41': '#7b1170',
+    '42': '#2785ca',
+    '43': '#a16180',
+    '44': '#45abc2',
+    '45': '#eec78b',
+    '46': '#f8310a',
+    '47': '#1b8991',
+    '48': '#a5c7a5',
+    '49': '#d67f3a',
+    '50': '#6dca0d',
+    '51': '#139386',
+    '52': '#3cf0ff',
+    '53': '#4f8013',
+    '54': '#4c1134',
+    '55': '#c28f0d',
+    '56': '#2ddfdb',
+    '57': '#eaadda',
+    '58': '#dcd64b',
+    '59': '#c0a95c',
+    '60': '#b375f6',
+    '61': '#73b7df',
+    '62': '#2a5b84',
+    '63': '#d34e2d',
+}
 
 
 class HsiPipeline:
@@ -93,7 +159,7 @@ class HsiPipeline:
 
         clear_output()
 
-    def get_Xy(self, case: int, spectral_range=(1, 241)):
+    def get_Xy(self, case: int, spectral_range=(1, 241), test_size=0.5):
         y_test = np.array([])
         y_train = np.array([])
 
@@ -111,26 +177,36 @@ class HsiPipeline:
 
             matrix = matrix[:, spectral_range[0]:spectral_range[1]]
 
-            ind, _ = self.routine.sum_idx_array(self.routine.realIdx(bacteria.sample_cluster, 1))
-            idx_train, idx_test = train_test_split(ind, test_size=0.5, shuffle=False)
-            X_test = np.concatenate((X_test, matrix[idx_test]))
-            X_train = np.concatenate((X_train, matrix[idx_train]))
-
-            y = np.ones(idx_test.shape) * self.samples[sample][case]
-            y_test = np.concatenate((y_test, y))
-
-            y = np.ones(idx_train.shape) * self.samples[sample][case]
-            y_train = np.concatenate((y_train, y))
-
             if case != 0:
                 target_names.append(Utils.get_name(self.samples,
                                                    self.samples[sample][case], case))
             else:
                 target_names.append(sample)
 
-        X_train, y_train = shuffle(X_train, y_train)
+            ind, _ = self.routine.sum_idx_array(self.routine.realIdx(bacteria.sample_cluster, 1))
 
-        return X_train, X_test, y_train, y_test, target_names
+            if test_size < 1.0:
+                idx_train, idx_test = train_test_split(ind, test_size=test_size, shuffle=False)
+                X_test = np.concatenate((X_test, matrix[idx_test]))
+                X_train = np.concatenate((X_train, matrix[idx_train]))
+
+                y = np.ones(idx_test.shape) * self.samples[sample][case]
+                y_test = np.concatenate((y_test, y))
+
+                y = np.ones(idx_train.shape) * self.samples[sample][case]
+                y_train = np.concatenate((y_train, y))
+
+            if test_size == 1.0:
+                X_test = np.concatenate((X_test, matrix[ind]))
+                y_test = np.concatenate((y_test, np.ones(ind.shape) * self.samples[sample][case]))
+
+        if test_size < 1.0:
+            X_train, y_train = shuffle(X_train, y_train)
+            return X_train, X_test, y_train, y_test, target_names
+
+        X_test, y_test = shuffle(X_test, y_test)
+
+        return X_test, y_test, target_names
 
     @staticmethod
     def train_models(x_train: np.ndarray, x_test: np.ndarray,
