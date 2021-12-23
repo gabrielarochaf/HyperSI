@@ -1,4 +1,3 @@
-
 import numpy as np
 from math import factorial
 import matplotlib.pyplot as plt
@@ -179,18 +178,24 @@ class HsiRoutine:
         return np.delete(idx, ind_r), np.array(ind_r)
 
     @staticmethod
-    def rev_idx_array(idx, rmv, shape=None):
+    def rev_idx_array(idx, rmv, shape=None, tfill=None):
         """
             Create an array of idx according with
             idx and rmv, arrays of indexes
         """
+
         if shape is None:
             out = np.zeros(idx.shape[0] + rmv.shape[0])
         else:
             out = np.zeros(shape)
 
         out[rmv] = 0
-        out[idx] = 1
+
+        if tfill is not None:
+            for i, row in enumerate(idx):
+                out[row] = tfill[i]
+        else:
+            out[idx] = 1
 
         return out.astype(int)
 
@@ -198,11 +203,13 @@ class HsiRoutine:
         """
             show the idx in the image
         """
-        ind = self.realIdx(idx, c)
-        out_i = np.concatenate((ind, ind, ind), axis=0).reshape((3, *image.shape))
 
-        image = MinMaxScaler(feature_range=(0, 1)).fit_transform(image)
-        image = np.stack((image, image, image), axis=2)
+        ind = self.realIdx(idx, c)
+        out_i = np.concatenate((ind, ind, ind), axis=0).reshape((3, *(image.shape[:2])))
+
+        if len(image.shape) == 2:
+            image = MinMaxScaler(feature_range=(0, 1)).fit_transform(image)
+            image = np.stack((image, image, image), axis=2)
 
         image[out_i[0] != 0, 0] = rgb[0]
         image[out_i[1] != 0, 1] = rgb[1]
@@ -212,7 +219,5 @@ class HsiRoutine:
 
 
 if __name__ == '__main__':
-
     routine = HsiRoutine()
     print('so far so good')
-

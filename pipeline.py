@@ -1,4 +1,5 @@
 import os
+import json
 import numpy as np
 import seaborn as sns
 from utils import Utils
@@ -7,6 +8,7 @@ from joblib import dump, load
 import matplotlib.pyplot as plt
 from sklearn.utils import shuffle
 from hsiroutine import HsiRoutine
+import matplotlib.patches as mpatches
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 
@@ -159,6 +161,59 @@ class HsiPipeline:
 
         clear_output()
 
+    def results(self, models: list,
+                work_dir: str,
+                fig_dest_dir=None,
+                spectral_range=(1, 241), ):
+
+        with open(os.path.join(os.getcwd(), work_dir, 'config.json'), 'r') as f_cfg:
+            cfg = json.load(f_cfg)
+            f_cfg.close()
+
+        for sample in list(self.samples.keys()):
+            for idx, model in enumerate(models):
+                print(model.__class__.__name__, sample)
+
+                bacteria = Utils.load_bacteria(path=self.folder, name=sample)
+                matrix = self._signal_filter(sample=bacteria)
+                matrix = matrix[:, spectral_range[0]:spectral_range[1]]
+
+                ind, rem = self.routine.sum_idx_array(self.routine.realIdx(bacteria.sample_cluster, 1))
+
+                result = model.predict(matrix[ind])
+                full_array = self.routine.rev_idx_array(ind, rem, tfill=result)
+
+                targets = []
+                cl_legends = []
+                image = self.routine.matrix2hsi(matrix, *bacteria.normalized.shape[1:])[50, :, :]
+                image = self.routine.getCluster(image, bacteria.sample_cluster, 0, (255, 255, 255))
+
+                for classe in model.classes_:
+                    #             print(hex2rgb(colors[str(int(classe))]), colors[str(int(classe))])
+                    image = self.routine.getCluster(image, full_array, classe, Utils.hex2rgb(colors[str(int(classe))]))
+                    cl_legends.append(colors[str(int(classe))])
+                    targets.append(Utils.get_name(cfg['samples_training'], classe, 0))
+
+                cl_legends = [colors[str(int(classe))] for classe in model.classes_]
+                patches = [mpatches.Patch(color=cl_legends[i], label=targets[i])
+                           for i in range(len(targets))]
+
+                fig, ax = plt.subplots(**{'figsize': (14, 8), 'dpi': 300})
+
+                ax.axis('off')
+                ax.imshow(np.uint8(image))
+                legend = fig.legend(handles=patches, bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+
+                os.makedirs('{}/sample/{}'.format(fig_dest_dir, model.__class__.__name__ + '_' + str(idx)),
+                            exist_ok=True)
+                fig.savefig('{}/sample/{}/{}.jpg'
+                            .format(fig_dest_dir, model.__class__.__name__ + '_' + str(idx), sample),
+                            bbox_extra_artists=[legend], bbox_inches='tight')
+
+                plt.show()
+
+                del ind, bacteria, matrix
+
     def get_Xy(self, case: int, spectral_range=(1, 241), test_size=0.5):
         y_test = np.array([])
         y_train = np.array([])
@@ -211,7 +266,19 @@ class HsiPipeline:
     @staticmethod
     def train_models(x_train: np.ndarray, x_test: np.ndarray,
                      y_train: np.ndarray, y_test: np.ndarray,
-                     models: list, target_names: list, models_file: str, work_dir='outputs'):
+                     models: list, target_names: list, models_file: str,
+                     samples_dict: dict, work_dir='outputs'):
+
+        os.makedirs(os.path.join(os.getcwd(), work_dir), exist_ok=True)
+
+        config = dict({'samples_training': samples_dict})
+        for key in config.keys():
+            for sample in config[key].keys():
+                config[key][sample] = [int(case) for case in config[key][sample]]
+
+        with open(os.path.join(os.getcwd(), work_dir, 'config.json'), 'w') as f_cfg:
+            json.dump(config, f_cfg)
+            f_cfg.close()
 
         for model in models:
             print(model.__class__.__name__)
@@ -228,6 +295,4 @@ class HsiPipeline:
                         xticklabels=target_names, yticklabels=target_names,
                         fmt='.2%', cmap='Blues', ax=ax, annot_kws={"size": 16})
 
-        os.makedirs(os.path.join(os.getcwd(), work_dir), exist_ok=True)
         dump(models, os.path.join(os.getcwd(), work_dir, models_file))
-
