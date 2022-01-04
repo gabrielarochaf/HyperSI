@@ -19,6 +19,10 @@ class Utils:
         return ''.join(labels[0].split('_')[:sz])
 
     @staticmethod
+    def get_name_gram(samples_dict, case):
+        return samples_dict[case]
+
+    @staticmethod
     def load_bacteria(path: str, name: str, folder='capture'):
         sample_path = os.path.join(path, name)
         with open(os.path.join(sample_path, folder, name + '.pkl'), 'rb') as file:
